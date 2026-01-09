@@ -392,12 +392,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 1992404316}
   distance: 10
-  height: 5
+  height: 3
   viewAngle: 30
   forwardBackTiltAmount: 10
   maxBankAngle: 15
   enableIntro: 1
-  introDuration: 0.01
+  introDuration: 1
   introDistanceMultiplier: 500
   rotationSmoothness: 5
   lateralShiftAmount: 3
