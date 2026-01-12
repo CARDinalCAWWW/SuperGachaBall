@@ -115,19 +115,22 @@ public class DashUI : MonoBehaviour
         {
             fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, maxFillWidth * powerValue);
 
-            // Update color based on power level
-            if (powerValue < 0.3f)
+            // Smooth color transitions using Lerp
+            Color targetColor;
+            if (powerValue < 0.5f)
             {
-                powerMeterFill.color = weakColor;
-            }
-            else if (powerValue < 0.7f)
-            {
-                powerMeterFill.color = goodColor;
+                // Lerp from weak (red) to good (yellow) between 0-50%
+                float t = powerValue / 0.5f; // Normalize to 0-1
+                targetColor = Color.Lerp(weakColor, goodColor, t);
             }
             else
             {
-                powerMeterFill.color = optimalColor;
+                // Lerp from good (yellow) to optimal (green) between 50-100%
+                float t = (powerValue - 0.5f) / 0.5f; // Normalize to 0-1
+                targetColor = Color.Lerp(goodColor, optimalColor, t);
             }
+            
+            powerMeterFill.color = targetColor;
         }
 
         // Update text if available

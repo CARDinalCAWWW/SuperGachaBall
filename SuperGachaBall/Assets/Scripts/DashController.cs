@@ -53,11 +53,14 @@ public class DashController : MonoBehaviour
             }
         }
 
-        // Update power meter
+        // Update power meter and direction while charging
         if (currentState == DashState.ChargingPower)
         {
             powerMeterTimer += Time.deltaTime;
             float powerValue = GetPowerMeterValue();
+            
+            // Continuously update dash direction based on current input
+            UpdateDashDirection();
             
             if (dashUI != null)
             {
@@ -92,7 +95,19 @@ public class DashController : MonoBehaviour
         currentState = DashState.ChargingPower;
         powerMeterTimer = 0f;
 
-        // Lock the dash direction based on current input
+        // Initialize dash direction
+        UpdateDashDirection();
+
+        // Show UI
+        if (dashUI != null)
+        {
+            dashUI.ShowPowerMeter();
+        }
+    }
+
+    private void UpdateDashDirection()
+    {
+        // Update dash direction based on current input
         if (cameraController != null)
         {
             lockedDashDirection = cameraController.GetForceDirection();
@@ -110,12 +125,6 @@ public class DashController : MonoBehaviour
         else
         {
             lockedDashDirection = Vector3.forward;
-        }
-
-        // Show UI
-        if (dashUI != null)
-        {
-            dashUI.ShowPowerMeter();
         }
     }
 
