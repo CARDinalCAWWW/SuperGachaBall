@@ -48,4 +48,17 @@ public class BallPhysics : MonoBehaviour
             rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
         }
     }
+
+    /// <summary>
+    /// Apply an instant dash force to the ball
+    /// </summary>
+    /// <param name="dashForce">The force vector to apply</param>
+    public void ApplyDashForce(Vector3 dashForce)
+    {
+        if (rb != null)
+        {
+            rb.AddForce(dashForce, ForceMode.Impulse);
+            Debug.Log($"Dash force applied: {dashForce}, Current velocity: {rb.linearVelocity}");
+        }
+    }
 }
