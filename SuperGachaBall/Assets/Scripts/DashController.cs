@@ -6,6 +6,12 @@ public class DashController : MonoBehaviour
     [Header("Dash Settings")]
     [Tooltip("Base force multiplier for dash")]
     public float dashForceMultiplier = 20f;
+    [Tooltip("Additional force based on current velocity")]
+    public float velocityScaleMultiplier = 1.5f;
+    [Tooltip("If true, cancels velocity opposing the dash direction")]
+    public bool cancelOpposingVelocity = true;
+    [Tooltip("Minimum speed guaranteed in dash direction (0 = no guarantee)")]
+    public float minimumDashSpeed = 8f;
     [Tooltip("Cooldown duration in seconds")]
     public float cooldownDuration = 2f;
     [Tooltip("Duration of power meter oscillation (one full cycle)")]
@@ -18,6 +24,8 @@ public class DashController : MonoBehaviour
     public CameraTiltController cameraController;
     [Tooltip("Reference to the dash UI")]
     public DashUI dashUI;
+    [Tooltip("Reference to Player Input for manual action polling")]
+    public PlayerInput playerInput;
 
     // State tracking
     private enum DashState
@@ -30,14 +38,73 @@ public class DashController : MonoBehaviour
     private DashState currentState = DashState.Idle;
     private float cooldownTimer = 0f;
     private float powerMeterTimer = 0f;
+    private bool isInitialDrop = false; // Track if we're in the quick drop phase
     private Vector3 lockedDashDirection;
+    private InputAction dashAction;
 
-    // Called by Input System when Dash action is triggered
-    public void OnDash(InputValue value)
+    private void Start()
     {
-        if (value.isPressed)
+        // Get the dash action and subscribe to its events
+        if (playerInput != null)
         {
-            HandleDashInput();
+            dashAction = playerInput.actions.FindAction("Dash");
+            if (dashAction != null)
+            {
+                // Subscribe to the action's phase events
+                dashAction.started += OnDashButtonPress;
+                dashAction.canceled += OnDashButtonRelease;
+                Debug.Log("Subscribed to Dash action events!");
+            }
+            else
+            {
+                Debug.LogError("Dash action not found in PlayerInput!");
+            }
+        }
+        else
+        {
+            Debug.LogError("PlayerInput reference not assigned!");
+        }
+    }
+
+    private void OnDestroy()
+    {
+        // Unsubscribe from events when destroyed
+        if (dashAction != null)
+        {
+            dashAction.started -= OnDashButtonPress;
+            dashAction.canceled -= OnDashButtonRelease;
+        }
+    }
+
+    // Event callback for when dash button is pressed (started phase)
+    private void OnDashButtonPress(InputAction.CallbackContext context)
+    {
+        Debug.Log("Dash button PRESSED (started event)");
+        HandleDashPress();
+    }
+
+    // Event callback for when dash button is released (canceled phase)
+    private void OnDashButtonRelease(InputAction.CallbackContext context)
+    {
+        Debug.Log("Dash button RELEASED (canceled event)");
+        HandleDashRelease();
+    }
+
+    private void HandleDashPress()
+    {
+        // Only start charging if we're in Idle state
+        if (currentState == DashState.Idle)
+        {
+            StartCharging();
+        }
+    }
+
+    private void HandleDashRelease()
+    {
+        // Only execute dash if we're currently charging
+        if (currentState == DashState.ChargingPower)
+        {
+            ExecuteDash();
         }
     }
 
@@ -83,39 +150,20 @@ public class DashController : MonoBehaviour
         }
     }
 
-    private void HandleDashInput()
-    {
-        switch (currentState)
-        {
-            case DashState.Idle:
-                // Start charging
-                StartCharging();
-                break;
-
-            case DashState.ChargingPower:
-                // Lock in power and execute dash
-                ExecuteDash();
-                break;
-
-            case DashState.Cooldown:
-                // Ignore input during cooldown
-                Debug.Log("Dash is on cooldown!");
-                break;
-        }
-    }
-
     private void StartCharging()
     {
         currentState = DashState.ChargingPower;
         powerMeterTimer = 0f;
+        isInitialDrop = false; // Skip initial drop, start oscillating immediately
 
         // Initialize dash direction
         UpdateDashDirection();
 
-        // Show UI
+        // Show UI and start oscillating
         if (dashUI != null)
         {
             dashUI.ShowPowerMeter();
+            dashUI.UpdatePowerMeter(1f); // Start at 100%
         }
     }
 
@@ -146,32 +194,115 @@ public class DashController : MonoBehaviour
     {
         float powerValue = GetPowerMeterValue();
         
-        // Calculate dash force
-        float dashPower = powerValue; // 0 to 1
-        Vector3 dashForce = lockedDashDirection * dashForceMultiplier * dashPower;
-
-        // Apply dash force to ball
-        if (ballPhysics != null)
+        if (ballPhysics == null)
         {
-            ballPhysics.ApplyDashForce(dashForce);
+            Debug.LogWarning("BallPhysics reference missing!");
+            return;
+        }
+        
+        // Calculate dash power
+        float dashPower = powerValue; // 0 to 1
+        
+        // Get current velocity
+        Vector3 currentVelocity = ballPhysics.GetVelocity();
+        
+        // Calculate velocity component in dash direction
+        float velocityInDashDirection = Vector3.Dot(currentVelocity, lockedDashDirection);
+        
+        // Handle opposing velocity
+        if (cancelOpposingVelocity && velocityInDashDirection < 0)
+        {
+            // Cancel the opposing velocity component
+            Vector3 opposingVelocity = lockedDashDirection * velocityInDashDirection;
+            ballPhysics.AddVelocity(-opposingVelocity);
+            
+            Debug.Log($"Canceled opposing velocity: {opposingVelocity.magnitude:F2} m/s");
+            
+            // Reset velocity in dash direction to 0 for calculations
+            velocityInDashDirection = 0;
+        }
+        
+        // Calculate base dash force
+        Vector3 baseDashForce = lockedDashDirection * dashForceMultiplier * dashPower;
+        
+        // Add velocity-relative force to make dash effective at high speeds
+        Vector3 velocityBoost = Vector3.zero;
+        float currentSpeed = currentVelocity.magnitude;
+        if (currentSpeed > 0.1f)
+        {
+            velocityBoost = lockedDashDirection * currentSpeed * velocityScaleMultiplier * dashPower;
+        }
+        
+        Vector3 totalDashForce = baseDashForce + velocityBoost;
+
+        // Apply dash force
+        ballPhysics.ApplyDashForce(totalDashForce);
+        
+        // Ensure minimum speed in dash direction if configured
+        if (minimumDashSpeed > 0)
+        {
+            // Wait one physics frame for force to apply, then check speed
+            StartCoroutine(EnsureMinimumDashSpeed(minimumDashSpeed * dashPower));
         }
 
-        // Hide UI
+        // Start smooth transition to cooldown
         if (dashUI != null)
         {
-            dashUI.HidePowerMeter();
+            dashUI.StartCooldownTransition(powerValue);
         }
 
         // Enter cooldown
         currentState = DashState.Cooldown;
         cooldownTimer = cooldownDuration;
 
-        Debug.Log($"Dash executed! Power: {powerValue:F2}, Direction: {lockedDashDirection}, Force: {dashForce}");
+        Debug.Log($"Dash executed! Power: {powerValue:F2}, VelInDir: {velocityInDashDirection:F2}, Base: {baseDashForce.magnitude:F2}, Boost: {velocityBoost.magnitude:F2}, Total: {totalDashForce.magnitude:F2}");
+    }
+    
+    private System.Collections.IEnumerator EnsureMinimumDashSpeed(float minSpeed)
+    {
+        // Wait for physics update
+        yield return new WaitForFixedUpdate();
+        
+        if (ballPhysics != null)
+        {
+            Vector3 velocity = ballPhysics.GetVelocity();
+            float speedInDashDirection = Vector3.Dot(velocity, lockedDashDirection);
+            
+            // If we're below minimum speed, add velocity to reach it
+            if (speedInDashDirection < minSpeed)
+            {
+                float speedDeficit = minSpeed - speedInDashDirection;
+                Vector3 velocityBoost = lockedDashDirection * speedDeficit;
+                ballPhysics.AddVelocity(velocityBoost);
+                
+                Debug.Log($"Minimum speed enforced: added {speedDeficit:F2} m/s to reach {minSpeed:F2} m/s");
+            }
+        }
     }
 
     private float GetPowerMeterValue()
     {
-        // Oscillate between 0 and 1 based on timer
+        // Quick drop phase: go from 100% to 0% quickly
+        if (isInitialDrop)
+        {
+            if (dashUI != null)
+            {
+                float dropDuration = dashUI.chargeDropDuration;
+                if (powerMeterTimer < dropDuration)
+                {
+                    // Lerp from 1.0 to 0.0
+                    return Mathf.Lerp(1f, 0f, powerMeterTimer / dropDuration);
+                }
+                else
+                {
+                    // Drop complete, switch to normal oscillation
+                    isInitialDrop = false;
+                    powerMeterTimer = 0f; // Reset for oscillation phase
+                }
+            }
+        }
+        
+        // Normal oscillation: 0 -> 1 -> 0
         float normalizedTime = (powerMeterTimer % powerMeterCycleDuration) / powerMeterCycleDuration;
         
         // Triangle wave: goes 0 -> 1 -> 0

@@ -61,4 +61,25 @@ public class BallPhysics : MonoBehaviour
             Debug.Log($"Dash force applied: {dashForce}, Current velocity: {rb.linearVelocity}");
         }
     }
+    
+    /// <summary>
+    /// Get the current velocity of the ball
+    /// </summary>
+    /// <returns>Current velocity vector</returns>
+    public Vector3 GetVelocity()
+    {
+        return rb != null ? rb.linearVelocity : Vector3.zero;
+    }
+    
+    /// <summary>
+    /// Directly add to the ball's velocity
+    /// </summary>
+    /// <param name="velocityChange">Velocity to add</param>
+    public void AddVelocity(Vector3 velocityChange)
+    {
+        if (rb != null)
+        {
+            rb.linearVelocity += velocityChange;
+        }
+    }
 }

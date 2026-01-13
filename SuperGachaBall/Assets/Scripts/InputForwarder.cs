@@ -30,15 +30,7 @@ public class InputForwarder : MonoBehaviour
             Debug.LogError("InputForwarder: Ball object not assigned!");
         }
     }
-
-    // Called by Input System when Dash action is triggered
-    // This receives the input because Player Input is on the Camera
-    public void OnDash(InputValue value)
-    {
-        // Forward to the DashController on the ball
-        if (dashController != null)
-        {
-            dashController.OnDash(value);
-        }
-    }
+    
+    // NOTE: Dash input is now handled directly by DashController 
+    // via InputAction event subscription, so no forwarding needed here
 }
