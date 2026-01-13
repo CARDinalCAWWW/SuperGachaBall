@@ -26,6 +26,12 @@ public class DashController : MonoBehaviour
     public DashUI dashUI;
     [Tooltip("Reference to Player Input for manual action polling")]
     public PlayerInput playerInput;
+    [Tooltip("Reference to camera effects (optional)")]
+    public DashCameraEffects cameraEffects;
+    [Tooltip("Reference to visual effects (optional)")]
+    public DashVisualEffects visualEffects;
+    [Tooltip("Reference to ghost trail (optional)")]
+    public DashGhostTrail ghostTrail;
 
     // State tracking
     private enum DashState
@@ -115,21 +121,32 @@ public class DashController : MonoBehaviour
         {
             cooldownTimer -= Time.deltaTime;
             
-            // Show cooldown progress in UI
+            // Show cooldown progress in UI and light
             if (dashUI != null)
             {
                 float cooldownProgress = 1f - (cooldownTimer / cooldownDuration);
                 dashUI.ShowCooldown(cooldownProgress);
             }
             
+            if (visualEffects != null)
+            {
+                float cooldownProgress = 1f - (cooldownTimer / cooldownDuration);
+                visualEffects.UpdateCooldownLight(cooldownProgress);
+            }
+            
             if (cooldownTimer <= 0f)
             {
                 currentState = DashState.Idle;
                 
-                // Hide cooldown UI when ready
+                // Start ready pulse
                 if (dashUI != null)
                 {
                     dashUI.HideCooldown();
+                }
+                
+                if (visualEffects != null)
+                {
+                    visualEffects.StartReadyPulse();
                 }
             }
         }
@@ -143,9 +160,23 @@ public class DashController : MonoBehaviour
             // Continuously update dash direction based on current input
             UpdateDashDirection();
             
+            // Update UI
             if (dashUI != null)
             {
                 dashUI.UpdatePowerMeter(powerValue);
+            }
+            
+            // Update light intensity to match power
+            if (visualEffects != null)
+            {
+                visualEffects.UpdateChargingPower(powerValue);
+            }
+            
+            // Update ghost trail preview
+            if (ghostTrail != null && ballPhysics != null)
+            {
+                Vector3 dashForce = lockedDashDirection * dashForceMultiplier * powerValue;
+                ghostTrail.ShowTrail(ballPhysics.transform.position, dashForce, powerValue);
             }
         }
     }
@@ -158,6 +189,12 @@ public class DashController : MonoBehaviour
 
         // Initialize dash direction
         UpdateDashDirection();
+
+        // Start visual effects
+        if (visualEffects != null)
+        {
+            visualEffects.StartCharging();
+        }
 
         // Show UI and start oscillating
         if (dashUI != null)
@@ -238,6 +275,30 @@ public class DashController : MonoBehaviour
         // Apply dash force
         ballPhysics.ApplyDashForce(totalDashForce);
         
+        // Stop charging effects, start dash effects
+        if (visualEffects != null)
+        {
+            visualEffects.StopCharging();
+            visualEffects.PlayDashTrail();
+            visualEffects.StartCooldownLight(); // Start cooldown light fade-in
+        }
+        
+        // Trigger camera effects
+        if (cameraController != null)
+        {
+            cameraController.StartDashZoom();
+            cameraController.TriggerShake();
+            
+            // End zoom after delay
+            StartCoroutine(EndDashZoomDelayed(0.5f));
+        }
+        
+        // Hide ghost trail
+        if (ghostTrail != null)
+        {
+            ghostTrail.HideTrail();
+        }
+        
         // Ensure minimum speed in dash direction if configured
         if (minimumDashSpeed > 0)
         {
@@ -277,6 +338,16 @@ public class DashController : MonoBehaviour
                 
                 Debug.Log($"Minimum speed enforced: added {speedDeficit:F2} m/s to reach {minSpeed:F2} m/s");
             }
+        }
+    }
+    
+    private System.Collections.IEnumerator EndDashZoomDelayed(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        if (cameraController != null)
+        {
+            cameraController.EndDashZoom();
         }
     }
 

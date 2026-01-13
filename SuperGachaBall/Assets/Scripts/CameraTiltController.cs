@@ -52,6 +52,25 @@ public class CameraTiltController : MonoBehaviour
     private float targetZRotation = 0f;
     private float targetLateralOffset = 0f;
     
+    // Dash camera effects
+    [Header("Dash Camera Effects")]
+    [Tooltip("Normal camera FOV")]
+    public float normalFOV = 60f;
+    [Tooltip("FOV during dash")]
+    public float dashFOV = 75f;
+    [Tooltip("How quickly FOV changes")]
+    public float fovTransitionSpeed = 10f;
+    [Tooltip("Screen shake magnitude")]
+    public float shakeMagnitude = 0.3f;
+    [Tooltip("Shake duration")]
+    public float shakeDuration = 0.2f;
+    
+    private Camera cam;
+    private float targetFOV;
+    private bool isShaking = false;
+    private float shakeTimer = 0f;
+    private Vector3 shakeOffset = Vector3.zero;
+    
     // Intro animation
     private bool introComplete = false;
     private float introTimer = 0f;
@@ -71,6 +90,13 @@ public class CameraTiltController : MonoBehaviour
 
     private void Start()
     {
+        cam = GetComponent<Camera>();
+        if (cam == null)
+        {
+            Debug.LogError("CameraTiltController: No Camera component found!");
+        }
+        targetFOV = normalFOV;
+        
         if (target == null)
         {
             Debug.LogError("CameraTiltController: No target assigned!");
@@ -90,6 +116,35 @@ public class CameraTiltController : MonoBehaviour
     [Header("Ground Settings")]
     [Tooltip("Minimum camera height above ground")]
     public float minHeight = 1f;
+
+    private void Update()
+    {
+        // Smoothly transition FOV for dash effects
+        if (cam != null)
+        {
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * fovTransitionSpeed);
+        }
+
+        // Handle screen shake timer
+        if (isShaking)
+        {
+            shakeTimer -= Time.deltaTime;
+            if (shakeTimer <= 0f)
+            {
+                isShaking = false;
+                shakeOffset = Vector3.zero;
+            }
+            else
+            {
+                // Generate random shake offset
+                shakeOffset = Random.insideUnitSphere * shakeMagnitude;
+            }
+        }
+        else
+        {
+            shakeOffset = Vector3.zero;
+        }
+    }
 
     private void LateUpdate()
     {
@@ -148,7 +203,7 @@ public class CameraTiltController : MonoBehaviour
             desiredPosition.y = minHeight;
         }
         
-        transform.position = desiredPosition;
+        transform.position = desiredPosition + shakeOffset;
         
         // Manually calculate rotation to preserve Z banking
         // Look at target
@@ -157,6 +212,23 @@ public class CameraTiltController : MonoBehaviour
         
         // Apply our tilt and banking on top
         transform.rotation = lookRotation * Quaternion.Euler(0, 0, currentZRotation);
+    }
+
+    // Public methods for dash camera effects
+    public void StartDashZoom()
+    {
+        targetFOV = dashFOV;
+    }
+
+    public void EndDashZoom()
+    {
+        targetFOV = normalFOV;
+    }
+
+    public void TriggerShake()
+    {
+        isShaking = true;
+        shakeTimer = shakeDuration;
     }
 
     // Public method to get direction for physics based on input
