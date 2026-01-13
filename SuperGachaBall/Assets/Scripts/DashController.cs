@@ -47,9 +47,23 @@ public class DashController : MonoBehaviour
         if (currentState == DashState.Cooldown)
         {
             cooldownTimer -= Time.deltaTime;
+            
+            // Show cooldown progress in UI
+            if (dashUI != null)
+            {
+                float cooldownProgress = 1f - (cooldownTimer / cooldownDuration);
+                dashUI.ShowCooldown(cooldownProgress);
+            }
+            
             if (cooldownTimer <= 0f)
             {
                 currentState = DashState.Idle;
+                
+                // Hide cooldown UI when ready
+                if (dashUI != null)
+                {
+                    dashUI.HideCooldown();
+                }
             }
         }
 
