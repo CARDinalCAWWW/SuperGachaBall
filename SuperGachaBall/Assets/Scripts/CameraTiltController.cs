@@ -34,12 +34,21 @@ public class CameraTiltController : MonoBehaviour
     [Header("Lateral Movement")]
     [Tooltip("How much the camera shifts left/right")]
     public float lateralShiftAmount = 3f;
+    
+    [Header("Camera Look")]
+    [Tooltip("Mouse/right stick sensitivity for looking around")]
+    public float lookSensitivity = 100f;
+    [Tooltip("How far the camera can rotate left/right (degrees)")]
+    public float maxYRotation = 60f;
 
     private Vector2 moveInput;
+    private Vector2 lookInput;
     private float currentXRotation = 0f;
+    private float currentYRotation = 0f;
     private float currentZRotation = 0f;
     private float currentLateralOffset = 0f;
     private float targetXRotation = 0f;
+    private float targetYRotation = 0f;
     private float targetZRotation = 0f;
     private float targetLateralOffset = 0f;
     
@@ -52,6 +61,12 @@ public class CameraTiltController : MonoBehaviour
     public void OnMove(InputValue value)
     {
         moveInput = value.Get<Vector2>();
+    }
+    
+    // Called by Input System when Look action is triggered
+    public void OnLook(InputValue value)
+    {
+        lookInput = value.Get<Vector2>();
     }
 
     private void Start()
@@ -106,14 +121,19 @@ public class CameraTiltController : MonoBehaviour
         
         // X input also shifts camera laterally
         targetLateralOffset = moveInput.x * lateralShiftAmount;
+        
+        // Look input (mouse/right stick) rotates camera around Y axis
+        targetYRotation += lookInput.x * lookSensitivity * Time.deltaTime;
+        targetYRotation = Mathf.Clamp(targetYRotation, -maxYRotation, maxYRotation);
 
         // Smoothly interpolate to target values
         currentXRotation = Mathf.Lerp(currentXRotation, targetXRotation, Time.deltaTime * rotationSmoothness);
+        currentYRotation = Mathf.Lerp(currentYRotation, targetYRotation, Time.deltaTime * rotationSmoothness);
         currentZRotation = Mathf.Lerp(currentZRotation, targetZRotation, Time.deltaTime * rotationSmoothness);
         currentLateralOffset = Mathf.Lerp(currentLateralOffset, targetLateralOffset, Time.deltaTime * rotationSmoothness);
 
-        // Apply rotation (fixed downward angle + subtle tilt, with Z banking)
-        Quaternion rotation = Quaternion.Euler(currentXRotation, 0, currentZRotation);
+        // Apply rotation (fixed downward angle + subtle tilt + look rotation, with Z banking)
+        Quaternion rotation = Quaternion.Euler(currentXRotation, currentYRotation, currentZRotation);
         
         // Position camera at offset from target with lateral shift and intro distance
         float currentDistance = distance + introDistanceOffset;
@@ -142,13 +162,16 @@ public class CameraTiltController : MonoBehaviour
     // Public method to get direction for physics based on input
     public Vector3 GetForceDirection()
     {
-        // Since camera doesn't rotate around Y axis anymore, force is simpler
-        // Forward/backward based on Y input
+        // Calculate movement direction in local space
         Vector3 forward = Vector3.forward * moveInput.y;
-        // Left/right based on X input
         Vector3 right = Vector3.right * moveInput.x;
+        Vector3 localDirection = (forward + right).normalized;
         
-        return (forward + right).normalized;
+        // Rotate the direction by the camera's Y rotation to make it camera-relative
+        Quaternion cameraYRotation = Quaternion.Euler(0, currentYRotation, 0);
+        Vector3 worldDirection = cameraYRotation * localDirection;
+        
+        return worldDirection;
     }
 
     public float GetTiltMagnitude()
