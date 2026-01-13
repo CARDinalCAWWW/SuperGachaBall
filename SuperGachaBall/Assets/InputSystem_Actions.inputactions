@@ -63,7 +63,7 @@
                     "name": "Previous",
                     "type": "Button",
                     "id": "2776c80d-3c14-4091-8c56-d04ced07a2b0",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -81,7 +81,7 @@
                     "name": "Sprint",
                     "type": "Button",
                     "id": "641cd816-40e6-41b4-8c3d-04687c349290",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -90,7 +90,7 @@
                     "name": "Dash",
                     "type": "Button",
                     "id": "a9f3e5d7-2b1c-4a8e-9d6f-3c5b7e8a1f2d",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -495,11 +495,11 @@
                 },
                 {
                     "name": "",
-                    "id": "8e9f0a1b-3c4d-5e6f-7a8b-9c0d1e2f3a4b",
-                    "path": "<Gamepad>/leftTrigger",
+                    "id": "7f35f55a-35a7-4295-beea-8056980e597d",
+                    "path": "<Gamepad>/rightTrigger",
                     "interactions": "",
                     "processors": "",
-                    "groups": "Gamepad",
+                    "groups": ";Gamepad;Joystick",
                     "action": "Dash",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -1017,6 +1017,34 @@
                     "processors": "",
                     "groups": "XR",
                     "action": "TrackedDeviceOrientation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "New action map",
+            "id": "28c14bb2-9cdb-46f2-89ea-778f65f32067",
+            "actions": [
+                {
+                    "name": "New action",
+                    "type": "Button",
+                    "id": "46f49265-5aa1-4f50-8038-296d8989146e",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "d31d84ca-ec20-4352-ae78-eae7ce1bcdb5",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "New action",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
