@@ -14,6 +14,12 @@ public class DashUI : MonoBehaviour
     [Tooltip("Text showing power percentage (optional)")]
     public TextMeshProUGUI powerText;
 
+    [Header("Meter Dimensions")]
+    [Tooltip("Width of the dash meter")]
+    public float meterWidth = 400f;
+    [Tooltip("Height of the dash meter")]
+    public float meterHeight = 50f;
+    
     [Header("Visual Settings")]
     [Tooltip("Color for weak power (0-30%) - Neon Red")]
     public Color weakColor = new Color(1f, 0.1f, 0.1f); // Bright neon red
@@ -27,10 +33,20 @@ public class DashUI : MonoBehaviour
     public Color cooldownMidColor = new Color(0.3f, 0.5f, 0.9f); // Brighter blue
     [Tooltip("Cooldown end color (light-dark cyan)")]
     public Color cooldownEndColor = new Color(0.2f, 0.9f, 1f); // Bright cyan
+    [Tooltip("Ready state color (bright green)")]
+    public Color readyColor = new Color(0f, 1f, 0.2f); // Bright green
     [Tooltip("Outline thickness as percentage of meter height (0.05 = 5%)")]
     public float outlineThicknessPercent = 0.05f;
+    [Tooltip("Duration of cyan-to-green transition (seconds)")]
+    public float readyTransitionDuration = 0.3f;
+    [Tooltip("Duration of initial charge drop (seconds)")]
+    public float chargeDropDuration = 0.2f;
     [Tooltip("Fade in/out duration")]
     public float fadeDuration = 0.2f;
+    [Tooltip("Duration for ready to charging drop (seconds)")]
+    public float readyToChargingDuration = 0.3f;
+    [Tooltip("Duration for dash power to zero transition (seconds)")]
+    public float dashToZeroDuration = 0.4f;
 
     private CanvasGroup canvasGroup;
     private RectTransform fillRectTransform;
@@ -38,6 +54,8 @@ public class DashUI : MonoBehaviour
     private Shadow fillShadow;
     private float maxFillWidth;
     private bool isVisible = false;
+    private UnityEngine.Coroutine activeTransition = null;
+    private bool isTransitioning = false;
 
     private void Awake()
     {
@@ -68,18 +86,14 @@ public class DashUI : MonoBehaviour
                 fillShadow.effectColor = new Color(0, 0, 0, 0.5f); // Semi-transparent black
             }
             
+            // Apply meter dimensions
+            ApplyMeterDimensions();
+            
             // Calculate outline/shadow thickness based on meter height
             UpdateOutlineThickness();
             
-            // Store the max width from the background
-            if (powerMeterBackground != null)
-            {
-                maxFillWidth = powerMeterBackground.GetComponent<RectTransform>().rect.width;
-            }
-            else
-            {
-                maxFillWidth = fillRectTransform.rect.width;
-            }
+            // Store the max width
+            maxFillWidth = meterWidth;
         }
 
         // Always visible - start in ready state
@@ -87,6 +101,16 @@ public class DashUI : MonoBehaviour
         canvasGroup.alpha = 1f;
         isVisible = true;
         ShowReady();
+    }
+    
+    // Called when inspector values change (for live editing)
+    private void OnValidate()
+    {
+        if (Application.isPlaying && fillRectTransform != null)
+        {
+            ApplyMeterDimensions();
+            UpdateOutlineThickness();
+        }
     }
 
     private void Update()
@@ -96,12 +120,55 @@ public class DashUI : MonoBehaviour
 
     public void ShowPowerMeter()
     {
-        // UI is always visible, no need to show/hide
+        // UI is always visible, meter will update via UpdatePowerMeter()
     }
 
     public void HidePowerMeter()
     {
         // UI is always visible, no need to hide
+    }
+    
+    private void StopActiveTransition()
+    {
+        if (activeTransition != null)
+        {
+            StopCoroutine(activeTransition);
+            activeTransition = null;
+        }
+    }
+    
+    private System.Collections.IEnumerator TransitionReadyToCharging()
+    {
+        float elapsed = 0f;
+        
+        while (elapsed < readyToChargingDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / readyToChargingDuration;
+            
+            // Drop from 100% to 0% while transitioning color from green to red
+            if (fillRectTransform != null)
+            {
+                // Lerp width from 100% to 0%
+                float currentWidth = Mathf.Lerp(maxFillWidth, 0f, t);
+                fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, currentWidth);
+                
+                // Lerp color from green (ready) to red (weak/0%)
+                Color transitionColor = Color.Lerp(readyColor, weakColor, t);
+                SetFillColor(transitionColor);
+            }
+            
+            yield return null;
+        }
+        
+        // Ensure we end at exactly 0%
+        if (fillRectTransform != null)
+        {
+            fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 0f);
+            SetFillColor(weakColor);
+        }
+        
+        activeTransition = null;
     }
     
     // Helper method to create a lighter version of a color for the outline (neon glow)
@@ -125,13 +192,28 @@ public class DashUI : MonoBehaviour
         }
     }
     
+    // Apply meter dimensions to background and fill
+    private void ApplyMeterDimensions()
+    {
+        if (powerMeterBackground != null)
+        {
+            RectTransform bgRect = powerMeterBackground.GetComponent<RectTransform>();
+            bgRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, meterWidth);
+            bgRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, meterHeight);
+        }
+        
+        if (fillRectTransform != null)
+        {
+            fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, meterHeight);
+        }
+    }
+    
     // Update outline thickness based on current meter size
     private void UpdateOutlineThickness()
     {
         if (fillRectTransform != null)
         {
             // Calculate thickness as percentage of meter height
-            float meterHeight = fillRectTransform.rect.height;
             float thickness = meterHeight * outlineThicknessPercent;
             
             // Apply to outline (positive X for right, negative Y for down)
@@ -150,6 +232,12 @@ public class DashUI : MonoBehaviour
     
     public void ShowCooldown(float cooldownProgress)
     {
+        // Don't update if we're still transitioning
+        if (isTransitioning)
+        {
+            return;
+        }
+        
         // Keep UI visible during cooldown
         if (!isVisible)
         {
@@ -157,6 +245,8 @@ public class DashUI : MonoBehaviour
             canvasGroup.alpha = 1f;
             isVisible = true;
         }
+        
+        StopActiveTransition();
         
         // Display cooldown as a "recharging" bar with color gradient
         if (fillRectTransform != null)
@@ -188,19 +278,100 @@ public class DashUI : MonoBehaviour
         }
     }
     
+    // New method to transition from dash power to cooldown
+    public void StartCooldownTransition(float fromPowerValue)
+    {
+        StopActiveTransition();
+        isTransitioning = true;
+        activeTransition = StartCoroutine(TransitionDashToCooldown(fromPowerValue));
+    }
+    
+    private System.Collections.IEnumerator TransitionDashToCooldown(float startPower)
+    {
+        float elapsed = 0f;
+        
+        // Get the color at the start power level for charging
+        Color startColor;
+        if (startPower < 0.5f)
+        {
+            float t = startPower / 0.5f;
+            startColor = Color.Lerp(weakColor, goodColor, t);
+        }
+        else
+        {
+            float t = (startPower - 0.5f) / 0.5f;
+            startColor = Color.Lerp(goodColor, optimalColor, t);
+        }
+        
+        while (elapsed < dashToZeroDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / dashToZeroDuration;
+            
+            // Lerp from start power to 0
+            float currentPower = Mathf.Lerp(startPower, 0f, t);
+            
+            // Lerp color from start charging color to recharging start color (gray)
+            Color currentColor = Color.Lerp(startColor, cooldownStartColor, t);
+            
+            if (fillRectTransform != null)
+            {
+                fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, maxFillWidth * currentPower);
+                SetFillColor(currentColor);
+            }
+            
+            yield return null;
+        }
+        
+        // Ensure we end at 0 with the right color
+        if (fillRectTransform != null)
+        {
+            fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 0f);
+            SetFillColor(cooldownStartColor);
+        }
+        
+        if (powerText != null)
+        {
+            powerText.text = "Recharging...";
+        }
+        
+        isTransitioning = false;
+        activeTransition = null;
+    }
+    
     public void HideCooldown()
     {
-        // Show ready state instead of hiding
+        // Transition from cyan to green over time
+        StartCoroutine(TransitionToReady());
+    }
+    
+    private System.Collections.IEnumerator TransitionToReady()
+    {
+        float elapsed = 0f;
+        
+        while (elapsed < readyTransitionDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / readyTransitionDuration;
+            
+            // Lerp from cyan to green
+            Color transitionColor = Color.Lerp(cooldownEndColor, readyColor, t);
+            SetFillColor(transitionColor);
+            
+            yield return null;
+        }
+        
+        // Ensure we end at exactly ready state
         ShowReady();
     }
     
     public void ShowReady()
     {
-        // Show full bar in cyan to indicate ready state
+        // Show full bar in green to indicate ready state
         if (fillRectTransform != null)
         {
             fillRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, maxFillWidth);
-            SetFillColor(cooldownEndColor); // Cyan (ready)
+            SetFillColor(readyColor); // Bright green (ready to dash!)
         }
         
         if (powerText != null)
