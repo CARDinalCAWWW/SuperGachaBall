@@ -71,7 +71,7 @@ public class SpeedLinesController : MonoBehaviour
                 // Rotate while active
                 if (rectTransform != null)
                 {
-                    rectTransform.Rotate(Vector3.forward * rotationSpeed * t * Time.deltaTime);
+                    rectTransform.Rotate(Vector3.forward * t * Time.deltaTime);
                     
                     // Pulse scale
                     float pulse = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount * t;
