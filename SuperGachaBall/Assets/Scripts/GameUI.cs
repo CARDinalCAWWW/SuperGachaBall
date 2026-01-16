@@ -152,10 +152,32 @@ public class GameUI : MonoBehaviour
             stats += $"Completion: {CollectibleManager.Instance.GetCompletionPercentage():F1}%\n\n";
         }
         
-        string rank = ScoreManager.Instance.CalculateRank();
-        stats += $"RANK: {rank}";
+        // Calculate style info
+        float stylePoints = ScoreManager.Instance.GetStyleScore();
+        string rank = ScoreManager.Instance.GetRank(stylePoints);
+        
+        stats += $"STYLE: {stylePoints:F0}\n";
+        
+        // Colorize the Rank display using Rich Text tags for TextMeshPro (or Unity UI Text)
+        string colorHex = GetRankColorHex(rank);
+        stats += $"RANK: <color={colorHex}>{rank}</color>";
 
         return stats;
+    }
+
+    private string GetRankColorHex(string rank)
+    {
+        switch (rank)
+        {
+            case "F": return "#4C6885"; // Grey-Blue
+            case "D": return "#54B848"; // Green
+            case "C": return "#FFD635"; // Yellow
+            case "B": return "#FF922B"; // Orange
+            case "A": return "#FF3636"; // Red
+            case "GACHA": return "#B636FF"; // Purple
+            case "GACHASUPREME": return "#FFD700"; // Gold
+            default: return "#FFFFFF";
+        }
     }
 
     /// <summary>
