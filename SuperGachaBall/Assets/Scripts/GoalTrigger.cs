@@ -18,6 +18,10 @@ public class GoalTrigger : MonoBehaviour
     public bool freezeBallOnComplete = true;
 
     [Header("Visual Feedback")]
+    [Tooltip("Slow motion effect on finish (0 to 1, where 1 is normal speed)")]
+    [Range(0.1f, 1f)]
+    public float finishSlowMoScale = 0.5f;
+
     [Tooltip("Optional particle effect to play when goal is reached")]
     public ParticleSystem goalEffect;
     
@@ -25,6 +29,12 @@ public class GoalTrigger : MonoBehaviour
     public AudioSource goalSound;
 
     private bool goalReached = false;
+
+    private void OnDestroy()
+    {
+        // Ensure time scale is reset if level is reloaded/quit while slow-mo is active
+        Time.timeScale = 1f;
+    }
 
     private void Awake()
     {
@@ -89,6 +99,9 @@ public class GoalTrigger : MonoBehaviour
         {
             goalSound.Play();
         }
+
+        // Activate Slow Motion
+        Time.timeScale = finishSlowMoScale;
     }
 
     /// <summary>

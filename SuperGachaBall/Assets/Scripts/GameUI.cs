@@ -42,6 +42,21 @@ public class GameUI : MonoBehaviour
     public Text legacyCompletionStatsText;
     public Text legacyCompletionTitleText;
 
+    public static GameUI Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+    }
+
     private void Start()
     {
         // Hide completion panel at start
@@ -144,7 +159,7 @@ public class GameUI : MonoBehaviour
         string stats = $"Final Results\n\n";
         stats += $"Deaths: {ScoreManager.Instance.GetDeaths()}\n";
         stats += $"Time: {ScoreManager.Instance.FormatTime(ScoreManager.Instance.GetTime())}\n";
-        stats += $"Score: {ScoreManager.Instance.GetScore()}\n";
+        // Score is now part of Style calculation, removing raw score display to reduce confusion
 
         if (CollectibleManager.Instance != null)
         {
@@ -270,6 +285,55 @@ public class GameUI : MonoBehaviour
         #else
             Application.Quit();
         #endif
+    }
+
+    [Header("Floating Text")]
+    [Tooltip("Prefab for floating text (must have TextMeshProUGUI)")]
+    public GameObject floatingTextPrefab;
+    
+    [Tooltip("Parent transform for floating text (usually the canvas)")]
+    public Transform floatingTextParent;
+
+    /// <summary>
+    /// Spawns floating text at a world position (converted to screen space)
+    /// </summary>
+    public void ShowFloatingText(Vector3 worldPos, string text, Color color)
+    {
+        if (floatingTextPrefab == null) 
+        {
+            Debug.LogError("GameUI: Floating Text Prefab is missing! Drag it into the Inspector.");
+            return;
+        }
+        
+        if (floatingTextParent == null)
+        {
+            Debug.LogWarning("GameUI: Floating Text Parent is missing! Defaulting to GameUI transform.");
+            floatingTextParent = transform;
+        }
+
+        GameObject ftObj = Instantiate(floatingTextPrefab, floatingTextParent);
+        
+        // Convert world pos to screen pos
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(worldPos);
+        ftObj.transform.position = screenPos;
+        
+        // Setup text
+        TextMeshProUGUI tmp = ftObj.GetComponent<TextMeshProUGUI>();
+        if (tmp != null)
+        {
+            tmp.text = text;
+            tmp.color = color;
+        }
+        else
+        {
+            Debug.LogError("GameUI: Floating Text Prefab does not have a TextMeshProUGUI component!");
+        }
+
+        // Add simple animation component if not present
+        if (ftObj.GetComponent<FloatingTextAnimation>() == null)
+        {
+            ftObj.AddComponent<FloatingTextAnimation>();
+        }
     }
 
     private void OnDestroy()

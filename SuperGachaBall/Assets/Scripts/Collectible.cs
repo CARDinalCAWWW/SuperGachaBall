@@ -24,6 +24,12 @@ public class Collectible : MonoBehaviour
     [Tooltip("Rotation speed in degrees per second")]
     public float rotationSpeed = 90f;
 
+    [Header("Juice Settings")]
+    [Tooltip("Text to show when collected (e.g. +200)")]
+    public string scorePopupText = "+200";
+    [Tooltip("Color of the popup text")]
+    public Color scorePopupColor = Color.yellow;
+
     [Header("Visual Settings")]
     [Tooltip("Material to use (grey by default)")]
     public Material collectibleMaterial;
@@ -129,6 +135,12 @@ public class Collectible : MonoBehaviour
             {
                 ScoreManager.Instance.AddCollectible();
             }
+        }
+
+        // Show juice (Floating Text)
+        if (GameUI.Instance != null)
+        {
+            GameUI.Instance.ShowFloatingText(transform.position, scorePopupText, scorePopupColor);
         }
         
         // Play effects
