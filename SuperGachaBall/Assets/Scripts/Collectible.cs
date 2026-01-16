@@ -62,6 +62,26 @@ public class Collectible : MonoBehaviour
             collectibleMaterial.color = new Color(0.5f, 0.5f, 0.5f); // Grey
             meshRenderer.material = collectibleMaterial;
         }
+
+        // Increase hitbox size for easier collection
+        if (col != null)
+        {
+            // Check if it's a box collider (most likely)
+            if (col is BoxCollider boxCol)
+            {
+                boxCol.size *= 2.5f; // Make hitbox 2.5x larger
+            }
+            // Fallback for sphere collider
+            else if (col is SphereCollider sphereCol)
+            {
+                sphereCol.radius *= 2.5f;
+            }
+            else
+            {
+                // Fallback for general collider scale if possible, or just log
+                Debug.Log("Note: Collectible has non-standard collider, hitbox not auto-expanded.");
+            }
+        }
     }
 
     private void Update()

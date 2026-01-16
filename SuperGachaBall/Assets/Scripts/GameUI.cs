@@ -149,8 +149,11 @@ public class GameUI : MonoBehaviour
         if (CollectibleManager.Instance != null)
         {
             stats += $"Collectibles: {CollectibleManager.Instance.GetProgressString()}\n";
-            stats += $"Completion: {CollectibleManager.Instance.GetCompletionPercentage():F1}%";
+            stats += $"Completion: {CollectibleManager.Instance.GetCompletionPercentage():F1}%\n\n";
         }
+        
+        string rank = ScoreManager.Instance.CalculateRank();
+        stats += $"RANK: {rank}";
 
         return stats;
     }
@@ -202,6 +205,35 @@ public class GameUI : MonoBehaviour
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
         );
+    }
+
+    /// <summary>
+    /// Try to load the next level in the build settings.
+    /// If no next level exists, restarts the current level.
+    /// </summary>
+    public void LoadNextLevel()
+    {
+        int currentSceneIndex = UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex;
+        int nextSceneIndex = currentSceneIndex + 1;
+
+        // Check if the next scene index is valid in build settings
+        if (nextSceneIndex < UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings)
+        {
+            Debug.Log($"Loading next level (Index: {nextSceneIndex})...");
+            
+            // Reset managers before loading
+            if (ScoreManager.Instance != null) ScoreManager.Instance.StartLevel();
+            if (CollectibleManager.Instance != null) CollectibleManager.Instance.ResetCollectibles();
+            
+            UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneIndex);
+        }
+        else
+        {
+            Debug.LogWarning("No next level found! Restarting current level instead.");
+            // TODO: In the future, this should return to the Main Menu instead of restarting.
+            // We haven't created the Main Menu yet.
+            RestartLevel();
+        }
     }
 
     /// <summary>

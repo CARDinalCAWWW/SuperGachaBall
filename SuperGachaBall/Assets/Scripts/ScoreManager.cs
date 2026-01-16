@@ -150,6 +150,54 @@ public class ScoreManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Calculate raw style points
+    /// </summary>
+    public float GetStyleScore()
+    {
+        float maxCompletionScore = 2000f; 
+        float completionPercentage = 0f;
+        
+        if (CollectibleManager.Instance != null)
+        {
+            completionPercentage = CollectibleManager.Instance.GetCompletionPercentage();
+        }
+
+        float completionScore = (completionPercentage / 100f) * maxCompletionScore;
+        float timePenalty = Mathf.Min(totalTime * 10f, 1000f);
+        float deathPenalty = instanceDeaths * 200f;
+
+        float styleScore = completionScore - timePenalty - deathPenalty;
+        
+        // Bonus for perfection
+        if (completionPercentage >= 100f && instanceDeaths == 0)
+        {
+            styleScore += 500;
+        }
+
+        return styleScore;
+    }
+
+    /// <summary>
+    /// Get Rank string from score
+    /// </summary>
+    public string GetRank(float styleScore)
+    {
+        if (styleScore < 500) return "F";
+        if (styleScore < 900) return "D";
+        if (styleScore < 1200) return "C";
+        if (styleScore < 1500) return "B";
+        if (styleScore < 1800) return "A";
+        if (styleScore < 2200) return "GACHA";
+        return "GACHASUPREME";
+    }
+
+    // Kept for backward compatibility if needed, but GameUI should use the above two
+    public string CalculateRank()
+    {
+        return GetRank(GetStyleScore());
+    }
+
+    /// <summary>
     /// Get individual stats
     /// </summary>
     public int GetDeaths() => instanceDeaths;

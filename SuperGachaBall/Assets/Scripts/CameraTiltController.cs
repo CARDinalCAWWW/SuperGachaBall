@@ -37,7 +37,7 @@ public class CameraTiltController : MonoBehaviour
     
     [Header("Camera Look")]
     [Tooltip("Mouse/right stick sensitivity for looking around")]
-    public float lookSensitivity = 100f;
+    public float lookSensitivity = 50f;
     [Tooltip("How far the camera can rotate left/right (degrees) - IGNORED for 360 mode")]
     public float maxYRotation = 60f;
 

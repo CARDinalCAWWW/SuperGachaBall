@@ -341,6 +341,9 @@ public class DashUI : MonoBehaviour
     
     public void HideCooldown()
     {
+        // Check if object is active before starting coroutine
+        if (!gameObject.activeInHierarchy) return;
+
         // Transition from cyan to green over time
         StartCoroutine(TransitionToReady());
     }
