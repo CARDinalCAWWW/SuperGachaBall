@@ -38,8 +38,16 @@ public class CameraTiltController : MonoBehaviour
     [Header("Camera Look")]
     [Tooltip("Mouse/right stick sensitivity for looking around")]
     public float lookSensitivity = 100f;
-    [Tooltip("How far the camera can rotate left/right (degrees)")]
+    [Tooltip("How far the camera can rotate left/right (degrees) - IGNORED for 360 mode")]
     public float maxYRotation = 60f;
+
+    [Header("Edge Scrolling")]
+    [Tooltip("Rotate camera when mouse is at screen edge")]
+    public bool enableEdgeScrolling = true;
+    [Tooltip("Distance from edge to trigger scrolling (pixels)")]
+    public float edgeScrollSize = 20f;
+    [Tooltip("Speed of edge rotation")]
+    public float edgeScrollSpeed = 100f;
 
     private Vector2 moveInput;
     private Vector2 lookInput;
@@ -179,7 +187,22 @@ public class CameraTiltController : MonoBehaviour
         
         // Look input (mouse/right stick) rotates camera around Y axis
         targetYRotation += lookInput.x * lookSensitivity * Time.deltaTime;
-        targetYRotation = Mathf.Clamp(targetYRotation, -maxYRotation, maxYRotation);
+
+        // Edge Scrolling (Mouse at screen edge)
+        if (enableEdgeScrolling && Mouse.current != null)
+        {
+            Vector2 mousePos = Mouse.current.position.ReadValue();
+            if (mousePos.x <= edgeScrollSize)
+            {
+                targetYRotation -= edgeScrollSpeed * Time.deltaTime;
+            }
+            else if (mousePos.x >= Screen.width - edgeScrollSize)
+            {
+                targetYRotation += edgeScrollSpeed * Time.deltaTime;
+            }
+        }
+
+        // targetYRotation = Mathf.Clamp(targetYRotation, -maxYRotation, maxYRotation); // Removed clamp for 360 rotation
 
         // Smoothly interpolate to target values
         currentXRotation = Mathf.Lerp(currentXRotation, targetXRotation, Time.deltaTime * rotationSmoothness);

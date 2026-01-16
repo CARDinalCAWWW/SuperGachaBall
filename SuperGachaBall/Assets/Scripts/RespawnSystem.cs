@@ -5,7 +5,7 @@ public class RespawnSystem : MonoBehaviour
 {
     [Header("Respawn Settings")]
     [Tooltip("Y position below which the ball will respawn")]
-    public float respawnHeight = -10f;
+    public float respawnHeight = -35f;
     
     [Tooltip("Position to respawn at. Leave at zero to use starting position.")]
     public Vector3 respawnPosition = Vector3.zero;
@@ -70,6 +70,12 @@ public class RespawnSystem : MonoBehaviour
         // Reset physics
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
+        
+        // Track death in score manager
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.AddDeath();
+        }
         
         isRespawning = false;
         
